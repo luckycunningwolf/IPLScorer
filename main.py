@@ -7,6 +7,27 @@ from oauth2client.service_account import ServiceAccountCredentials
 from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackContext
 
+
+import os
+import json
+from oauth2client.service_account import ServiceAccountCredentials
+
+# Load credentials from environment variable
+credentials_json = os.getenv("GOOGLE_CREDENTIALS")
+
+if not credentials_json:
+    raise Exception("GOOGLE_CREDENTIALS environment variable is not set")
+
+# Convert JSON string to dictionary
+credentials_dict = json.loads(credentials_json)
+
+# Create credentials object
+scope = ["https://www.googleapis.com/auth/spreadsheets"]
+creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
+
+# Now you can use 'creds' for authentication in Google APIs
+
+
 # Telegram Bot Token
 TOKEN = "8118845254:AAHxkAnfoG7aYnaY2Cddji3AAzqtzVSHArQ"
 OWNER_ID = 6884495226  # Replace with your Telegram ID (@userinfobot to get it)
