@@ -12,7 +12,18 @@ import os
 import json
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Load credentials from environment variable
+# Telegram Bot Token
+TOKEN = "8118845254:AAHxkAnfoG7aYnaY2Cddji3AAzqtzVSHArQ"
+OWNER_ID = 6884495226  # Replace with your Telegram ID (@userinfobot to get it)
+
+scope = [
+    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/drive"
+]
+
+# Load credentials from the environment variable
 credentials_json = os.getenv("GOOGLE_CREDENTIALS")
 
 if not credentials_json:
@@ -21,23 +32,20 @@ if not credentials_json:
 # Convert JSON string to dictionary
 credentials_dict = json.loads(credentials_json)
 
-# Create credentials object
-scope = ["https://www.googleapis.com/auth/spreadsheets"]
+# Authenticate using the credentials
 creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
+client = gspread.authorize(creds)
+
+# Open the Google Sheet
+sheet = client.open("IPL_Scores").sheet1
+ # Ensure 'sheet1' is the correct sheet
+
+# Store votes and matches
+votes = {}
+match_details = {}
 
 # Now you can use 'creds' for authentication in Google APIs
 
-
-# Telegram Bot Token
-TOKEN = "8118845254:AAHxkAnfoG7aYnaY2Cddji3AAzqtzVSHArQ"
-OWNER_ID = 6884495226  # Replace with your Telegram ID (@userinfobot to get it)
-
-# Google Sheets Setup
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets",
-         "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
-client = gspread.authorize(creds)
-sheet = client.open("IPL_Scores").sheet1  # Ensure 'sheet1' is the correct sheet
 
 # Store votes and matches
 votes = {}
