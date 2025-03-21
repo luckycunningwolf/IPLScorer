@@ -55,7 +55,7 @@ async def start(update: Update, context: CallbackContext):
     await update.message.reply_text("🏏 Welcome to IPL Predictor! Use /addmatch <team1> vs <team2> to add a match.")
 
 async def add_match(update: Update, context: CallbackContext):
-    """Owner adds a match and triggers voting"""
+    """Owner adds a match and clears old votes before triggering voting"""
     if update.message.from_user.id != OWNER_ID:
         await update.message.reply_text("❌ Only the owner can add matches!")
         return
@@ -66,16 +66,16 @@ async def add_match(update: Update, context: CallbackContext):
 
     match = " ".join(context.args)
 
-    # Store match properly
-    if "current_matches" not in match_details:
-        match_details["current_matches"] = []
-    
+    # Reset matches before adding a new one
+    match_details["current_matches"] = []  # Clear previous matches
+
     match_details["current_matches"].append(match)
 
     await update.message.reply_text(f"📢 Match added: {match}")
 
     # Trigger voting immediately
     await trigger_voting(update, context)
+
 
 
 async def trigger_voting(update: Update, context: CallbackContext):
@@ -171,6 +171,8 @@ from datetime import datetime  # Import for date tracking
 
 from datetime import datetime  # Import for date tracking
 
+from datetime import datetime  # Import for date tracking
+
 async def set_winner(update: Update, context: CallbackContext):
     """Set winners for matches and distribute 12 points per match among correct voters."""
     if update.message.from_user.id != OWNER_ID:
@@ -186,6 +188,9 @@ async def set_winner(update: Update, context: CallbackContext):
     winner2 = context.args[1] if len(context.args) > 1 else None  # Match 2 is optional
 
     today_date = datetime.now().strftime("%Y-%m-%d")
+
+    # Get the fixture (match added via /addmatch)
+    fixture = match_details.get("current_matches", ["N/A"])[0]  # Default to "N/A" if no match found
 
     # Count correct votes for match 1
     correct_match1 = sum(1 for vote in votes.values() if vote.get("match1") == winner1)
@@ -208,15 +213,14 @@ async def set_winner(update: Update, context: CallbackContext):
         if winner2 and vote_data.get("match2") == winner2 and correct_match2 > 0:
             user_points += 12 // correct_match2
 
-        # Save results to Google Sheets
+        # Save results to Google Sheets with the fixture column
         sheet.append_row([
-            username,
-            vote_data.get("match1", "N/A"),
-            winner1,
-            vote_data.get("match2", "N/A") if winner2 else "N/A",
-            winner2 if winner2 else "N/A",
-            user_points,
-            today_date
+            username,                          # Player Name
+            vote_data.get("match1", "N/A"),    # Team Voted
+            winner1,                           # Winner
+            user_points,                       # Points Earned
+            today_date,                        # Date
+            fixture                            # Fixture (Match Added)
         ])
 
         results.append(f"{username} gets {user_points} points.")
@@ -231,7 +235,6 @@ async def set_winner(update: Update, context: CallbackContext):
 
     # Clear votes for next match day
     votes.clear()
-
 
 
 
@@ -263,10 +266,11 @@ async def plot_graph(update: Update, context: CallbackContext):
     scores = {}
 
     for row in all_records[1:]:  # Skip the header
-        if len(row) < 5:
-            continue  # Skip rows that don't have enough data
+    if len(row) < 6:  # Updated from 5 to 6
+        continue  # Skip rows that don't have enough data
 
-        name, _, _, total_points, match_date = row
+    name, _, _, total_points, match_date, fixture = row  # Added `fixture`
+
 
         if name not in scores:
             scores[name] = {"dates": [], "points": []}
@@ -314,11 +318,12 @@ async def plot_graph2(update: Update, context: CallbackContext):
         await update.message.reply_text("No data available to plot.")
         return
 
-    for row in all_records[1:]:  # Skip the header
-        if len(row) < 5:
-            continue  # Skip incomplete rows
+   for row in all_records[1:]:  # Skip the header
+    if len(row) < 6:  # Updated from 5 to 6
+        continue  # Skip rows that don't have enough data
 
-        name, _, _, points, match_date = row
+    name, _, _, total_points, match_date, fixture = row  # Added `fixture`
+
 
         try:
             points = int(points)  # Convert points to integer
@@ -366,11 +371,12 @@ async def plot_graph3(update: Update, context: CallbackContext):
     all_records = sheet.get_all_values()
     scores = {}
 
-    for row in all_records[1:]:  # Skip header row
-        if len(row) < 5:
-            continue  # Skip incomplete rows
+    for row in all_records[1:]:  # Skip the header
+    if len(row) < 6:  # Updated from 5 to 6
+        continue  # Skip rows that don't have enough data
 
-        name, _, _, points, _ = row
+    name, _, _, total_points, match_date, fixture = row  # Added `fixture`
+
 
         try:
             points = int(points)  # Ensure points are integers
