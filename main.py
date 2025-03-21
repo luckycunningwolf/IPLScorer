@@ -55,7 +55,7 @@ async def start(update: Update, context: CallbackContext):
     await update.message.reply_text("🏏 Welcome to IPL Predictor! Use /addmatch <team1> vs <team2> to add a match.")
 
 async def add_match(update: Update, context: CallbackContext):
-    """Owner adds a match"""
+    """Owner adds a match and triggers voting"""
     if update.message.from_user.id != OWNER_ID:
         await update.message.reply_text("❌ Only the owner can add matches!")
         return
@@ -65,30 +65,33 @@ async def add_match(update: Update, context: CallbackContext):
         return
 
     match = " ".join(context.args)
-    match_details["current_match"] = match
-    await update.message.reply_text(f"📢 Match added: {match}\nPlayers, place your votes using /vote <team>!")
 
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+    # Store match properly
+    if "current_matches" not in match_details:
+        match_details["current_matches"] = []
+    
+    match_details["current_matches"].append(match)
 
-async def vote(update: Update, context: CallbackContext):
-    """Players vote privately using inline buttons."""
-    user_id = update.effective_user.id
-    username = update.effective_user.first_name
+    await update.message.reply_text(f"📢 Match added: {match}")
 
+    # Trigger voting immediately
+    await trigger_voting(update, context)
+
+
+async def trigger_voting(update: Update, context: CallbackContext):
+    """Automatically send voting buttons when a match is added"""
     if not match_details.get("current_matches"):
-        await update.message.reply_text("No matches added yet! Wait for the admin.")
-        return
+        return  # No matches to vote on
 
-    matches = match_details["current_matches"]  # List of matches
-
-    # If only one match is scheduled
+    matches = match_details["current_matches"]
+    
+    # If one match is scheduled
     if len(matches) == 1:
-        match = matches[0]
-        teams = match.split(" vs ")
+        teams = matches[0].split(" vs ")
         keyboard = [[InlineKeyboardButton(teams[0], callback_data=f"vote_{teams[0]}"),
                      InlineKeyboardButton(teams[1], callback_data=f"vote_{teams[1]}")]]
-    else:
-        # Two matches, provide buttons for both
+    
+    else:  # Two matches scheduled
         teams1 = matches[0].split(" vs ")
         teams2 = matches[1].split(" vs ")
         keyboard = [
@@ -99,7 +102,20 @@ async def vote(update: Update, context: CallbackContext):
         ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("🗳️ Choose your vote:", reply_markup=reply_markup)
+    await update.message.reply_text("🗳️ Place your vote!", reply_markup=reply_markup)
+
+
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+
+async def vote(update: Update, context: CallbackContext):
+    """Players vote manually using inline buttons"""
+    if not match_details.get("current_matches") or len(match_details["current_matches"]) == 0:
+        await update.message.reply_text("❌ No matches added yet! Wait for the admin.")
+        return
+
+    # Reuse the function to show voting buttons again
+    await trigger_voting(update, context)
+
 
 
 async def vote_button_handler(update: Update, context: CallbackContext):
@@ -141,7 +157,10 @@ async def reveal_votes(update: Update, context: CallbackContext):
         await update.message.reply_text("No votes placed yet.")
         return
 
-    vote_text = "\n".join([f"{name} voted for {team}" for _, (name, team) in votes.items()])
+    vote_text = "\n".join(
+        [f"{data['username']} voted for {data.get('match1', 'N/A')} | {data.get('match2', 'N/A')}" for data in votes.values()]
+    )
+    
     await update.message.reply_text(f"📢 Votes are now visible:\n{vote_text}")
 
 
