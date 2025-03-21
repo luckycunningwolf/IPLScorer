@@ -266,8 +266,8 @@ async def plot_graph(update: Update, context: CallbackContext):
     scores = {}
 
     for row in all_records[1:]:  # Skip the header
-    if len(row) < 6:  # Updated from 5 to 6
-        continue  # Skip rows that don't have enough data
+        if len(row) < 6:  # Updated from 5 to 6
+            continue  # Skip rows that don't have enough data
 
     name, _, _, total_points, match_date, fixture = row  # Added `fixture`
 
@@ -319,8 +319,8 @@ async def plot_graph2(update: Update, context: CallbackContext):
         return
 
    for row in all_records[1:]:  # Skip the header
-    if len(row) < 6:  # Updated from 5 to 6
-        continue  # Skip rows that don't have enough data
+        if len(row) < 6:  # Updated from 5 to 6
+            continue  # Skip rows that don't have enough data
 
     name, _, _, total_points, match_date, fixture = row  # Added `fixture`
 
@@ -372,8 +372,8 @@ async def plot_graph3(update: Update, context: CallbackContext):
     scores = {}
 
     for row in all_records[1:]:  # Skip the header
-    if len(row) < 6:  # Updated from 5 to 6
-        continue  # Skip rows that don't have enough data
+        if len(row) < 6:  # Updated from 5 to 6
+            continue  # Skip rows that don't have enough data
 
     name, _, _, total_points, match_date, fixture = row  # Added `fixture`
 
