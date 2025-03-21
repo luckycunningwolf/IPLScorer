@@ -124,28 +124,27 @@ async def vote_button_handler(update: Update, context: CallbackContext):
     user_id = query.from_user.id
     username = query.from_user.first_name
 
-    # Parse the button callback data
     data = query.data.split("_")
 
-    if len(data) == 2:  # One-match scenario
+    if user_id not in votes:
+        votes[user_id] = {"username": username, "match1": None, "match2": None}
+
+    if len(data) == 2:  # Single match scenario
         _, chosen_team = data
-        if user_id not in votes:
-            votes[user_id] = {"username": username}
         votes[user_id]["match1"] = chosen_team
-        await query.answer("✅ Your vote has been recorded!")
+        await query.answer(f"✅ Vote recorded for {chosen_team}!")
 
     elif len(data) == 3:  # Two-match scenario
         match_number, chosen_team = data[0][-1], data[1]
-        if user_id not in votes:
-            votes[user_id] = {"username": username}
+
         if match_number == "1":
             votes[user_id]["match1"] = chosen_team
-        else:
+            await query.answer(f"✅ Vote recorded for Match 1: {chosen_team}!")
+        elif match_number == "2":
             votes[user_id]["match2"] = chosen_team
-        await query.answer("✅ Your vote has been recorded!")
+            await query.answer(f"✅ Vote recorded for Match 2: {chosen_team}!")
 
-    # Don't use edit_text() to remove buttons globally!
-
+    # ✅ Buttons remain active for others—only user's button click is processed
 
 
 async def reveal_votes(update: Update, context: CallbackContext):
@@ -159,10 +158,13 @@ async def reveal_votes(update: Update, context: CallbackContext):
         return
 
     vote_text = "\n".join(
-        [f"{data['username']} voted for {data.get('match1', 'N/A')} | {data.get('match2', 'N/A')}" for data in votes.values()]
+        [
+            f"{data['username']} | Match 1: {data['match1'] or '❌ No Vote'} | Match 2: {data['match2'] or '❌ No Vote'}"
+            for data in votes.values()
+        ]
     )
-    
-    await update.message.reply_text(f"📢 Votes are now visible:\n{vote_text}")
+
+    await update.message.reply_text(f"📢 **Votes Revealed**:\n\n{vote_text}")
 
 
 
@@ -268,7 +270,7 @@ async def leaderboard(update: Update, context: CallbackContext):
 
     await update.message.reply_text(f"🏆 Leaderboard:\n{leaderboard_text}")
 
-
+import numpy as np
 
 async def plot_graph(update: Update, context: CallbackContext):
     """Generate a graph of total scores over time"""
