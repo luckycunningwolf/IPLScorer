@@ -260,6 +260,10 @@ async def leaderboard(update: Update, context: CallbackContext):
 
 import matplotlib.pyplot as plt
 
+import numpy as np  # Import numpy for cumulative sum
+import matplotlib.pyplot as plt
+
+
 async def plot_graph(update: Update, context: CallbackContext):
     """Generate a graph of total scores over time"""
     all_records = sheet.get_all_values()
@@ -269,8 +273,7 @@ async def plot_graph(update: Update, context: CallbackContext):
         if len(row) < 6:  # Updated from 5 to 6
             continue  # Skip rows that don't have enough data
 
-    name, _, _, total_points, match_date, fixture = row  # Added `fixture`
-
+        name, _, _, total_points, match_date, fixture = row  # Added `fixture`
 
         if name not in scores:
             scores[name] = {"dates": [], "points": []}
@@ -292,22 +295,13 @@ async def plot_graph(update: Update, context: CallbackContext):
 
     # Save and send graph
     graph_path = "graph.png"
-    plt.ylim(0, 12)  # Change 100 to your desired max limit
+    plt.ylim(0, 12)  # Change 12 to your desired max limit
     plt.savefig(graph_path)
     plt.close()
 
     # ✅ FIXED: Properly await the reply_photo call
     await update.message.reply_photo(photo=open(graph_path, "rb"))
 
-
-import numpy as np  # Import numpy for cumulative sum
-import matplotlib.pyplot as plt
-
-import numpy as np  
-import matplotlib.pyplot as plt  
-
-import numpy as np
-import matplotlib.pyplot as plt
 
 async def plot_graph2(update: Update, context: CallbackContext):
     """Generate a cumulative score graph over time"""
@@ -318,12 +312,11 @@ async def plot_graph2(update: Update, context: CallbackContext):
         await update.message.reply_text("No data available to plot.")
         return
 
-   for row in all_records[1:]:  # Skip the header
+    for row in all_records[1:]:  # Skip the header
         if len(row) < 6:  # Updated from 5 to 6
             continue  # Skip rows that don't have enough data
 
-    name, _, _, total_points, match_date, fixture = row  # Added `fixture`
-
+        name, _, _, points, match_date, fixture = row  # Added `fixture`
 
         try:
             points = int(points)  # Convert points to integer
@@ -364,8 +357,6 @@ async def plot_graph2(update: Update, context: CallbackContext):
         await update.message.reply_photo(photo=photo)
 
 
-
-
 async def plot_graph3(update: Update, context: CallbackContext):
     """Generate a bar chart for cumulative scores"""
     all_records = sheet.get_all_values()
@@ -375,8 +366,7 @@ async def plot_graph3(update: Update, context: CallbackContext):
         if len(row) < 6:  # Updated from 5 to 6
             continue  # Skip rows that don't have enough data
 
-    name, _, _, total_points, match_date, fixture = row  # Added `fixture`
-
+        name, _, _, points, match_date, fixture = row  # Added `fixture`
 
         try:
             points = int(points)  # Ensure points are integers
@@ -407,6 +397,7 @@ async def plot_graph3(update: Update, context: CallbackContext):
 
     with open(graph_path, "rb") as photo:
         await update.message.reply_photo(photo=photo)
+
 
 
 
