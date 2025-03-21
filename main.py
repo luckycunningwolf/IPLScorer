@@ -271,7 +271,7 @@ async def leaderboard(update: Update, context: CallbackContext):
 
 
 async def plot_graph(update: Update, context: CallbackContext):
-    """Generate a graph of total scores over time (x-axis: Fixture)"""
+    """Generate a graph of total scores over time"""
     all_records = sheet.get_all_values()
     scores = {}
 
@@ -279,22 +279,22 @@ async def plot_graph(update: Update, context: CallbackContext):
         if len(row) < 6:  # Ensure the row has at least 6 values
             continue  
 
-        name, _, _, total_points, match_date, fixture = row[:6]  # ✅ Using fixture for x-axis
+        name, _, _, total_points, match_date, fixture = row[:6]  # ✅ Slice row to avoid extra values
 
         if name not in scores:
-            scores[name] = {"fixtures": [], "points": []}
+            scores[name] = {"dates": [], "points": []}
 
-        scores[name]["fixtures"].append(fixture)  # ✅ Use fixture instead of date
+        scores[name]["dates"].append(match_date)
         scores[name]["points"].append(int(total_points))
 
     # Plot the graph
     plt.figure(figsize=(10, 6))
     for name, data in scores.items():
-        plt.plot(data["fixtures"], data["points"], marker='o', linestyle='-', label=name)
+        plt.plot(data["dates"], data["points"], marker='o', linestyle='-', label=name)
 
-    plt.xlabel("Fixture")  # ✅ Changed from "Date" to "Fixture"
+    plt.xlabel("Date")
     plt.ylabel("Total Points")
-    plt.title("IPL Score Progress Over Fixtures")
+    plt.title("IPL Score Progress Over Time")
     plt.xticks(rotation=45)
     plt.legend()
     plt.grid()
@@ -308,7 +308,6 @@ async def plot_graph(update: Update, context: CallbackContext):
     await update.message.reply_photo(photo=open(graph_path, "rb"))
 
 
-
 async def plot_graph2(update: Update, context: CallbackContext):
     """Generate a cumulative score graph over time"""
     all_records = sheet.get_all_values()
@@ -318,16 +317,16 @@ async def plot_graph2(update: Update, context: CallbackContext):
         await update.message.reply_text("No data available to plot.")
         return
 
-    for row in all_records[1:]:  # Skip the header
-        if len(row) < 6:  # Updated from 5 to 6
-            continue  # Skip rows that don't have enough data
+    for row in all_records[1:]:
+        if len(row) < 6:
+            continue
 
-        name, _, _, points, match_date, fixture = row  # Added `fixture`
+        name, _, _, points, match_date, fixture = row[:6]  # ✅ Slice row to avoid errors
 
         try:
-            points = int(points)  # Convert points to integer
+            points = int(points)
         except ValueError:
-            continue  # Skip invalid rows
+            continue
 
         if name not in scores:
             scores[name] = {"dates": [], "points": []}
@@ -354,7 +353,6 @@ async def plot_graph2(update: Update, context: CallbackContext):
     plt.legend()
     plt.grid()
 
-    # Save and send graph
     graph_path = "graph2.png"
     plt.savefig(graph_path)
     plt.close()
@@ -368,16 +366,16 @@ async def plot_graph3(update: Update, context: CallbackContext):
     all_records = sheet.get_all_values()
     scores = {}
 
-    for row in all_records[1:]:  # Skip the header
-        if len(row) < 6:  # Updated from 5 to 6
-            continue  # Skip rows that don't have enough data
+    for row in all_records[1:]:
+        if len(row) < 6:
+            continue
 
-        name, _, _, points, match_date, fixture = row  # Added `fixture`
+        name, _, _, points, match_date, fixture = row[:6]  # ✅ Slice row to avoid errors
 
         try:
-            points = int(points)  # Ensure points are integers
+            points = int(points)
         except ValueError:
-            continue  # Skip rows with invalid points data
+            continue
 
         scores[name] = scores.get(name, 0) + points
 
@@ -396,7 +394,6 @@ async def plot_graph3(update: Update, context: CallbackContext):
     plt.xticks(rotation=45)
     plt.grid(axis='y', linestyle='--', alpha=0.7)
 
-    # Save and send graph
     graph_path = "graph3.png"
     plt.savefig(graph_path)
     plt.close()
