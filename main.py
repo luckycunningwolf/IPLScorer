@@ -126,14 +126,14 @@ async def vote_button_handler(update: Update, context: CallbackContext):
 
     # Parse the button callback data
     data = query.data.split("_")
-    
+
     if len(data) == 2:  # One-match scenario
         _, chosen_team = data
         if user_id not in votes:
             votes[user_id] = {"username": username}
         votes[user_id]["match1"] = chosen_team
-        await query.answer("✅ Vote recorded!")
-    
+        await query.answer("✅ Your vote has been recorded!")
+
     elif len(data) == 3:  # Two-match scenario
         match_number, chosen_team = data[0][-1], data[1]
         if user_id not in votes:
@@ -142,9 +142,10 @@ async def vote_button_handler(update: Update, context: CallbackContext):
             votes[user_id]["match1"] = chosen_team
         else:
             votes[user_id]["match2"] = chosen_team
-        await query.answer("✅ Vote recorded!")
+        await query.answer("✅ Your vote has been recorded!")
 
-    await query.message.edit_text("🗳️ Your vote has been recorded! (Votes remain hidden until match starts)")
+    # Don't use edit_text() to remove buttons globally!
+
 
 
 async def reveal_votes(update: Update, context: CallbackContext):
