@@ -68,23 +68,68 @@ async def add_match(update: Update, context: CallbackContext):
     match_details["current_match"] = match
     await update.message.reply_text(f"📢 Match added: {match}\nPlayers, place your votes using /vote <team>!")
 
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+
 async def vote(update: Update, context: CallbackContext):
-    """Players vote before the match starts"""
-    user_id = update.message.from_user.id
-    username = update.message.from_user.first_name
+    """Players vote privately using inline buttons."""
+    user_id = update.effective_user.id
+    username = update.effective_user.first_name
 
-    if not match_details.get("current_match"):
-        await update.message.reply_text("No match added yet! Wait for the admin.")
+    if not match_details.get("current_matches"):
+        await update.message.reply_text("No matches added yet! Wait for the admin.")
         return
 
-    if not context.args:
-        await update.message.reply_text("Please specify a team! Example: /vote CSK")
-        return
+    matches = match_details["current_matches"]  # List of matches
 
-    team = " ".join(context.args)
-    votes[user_id] = (username, team)
+    # If only one match is scheduled
+    if len(matches) == 1:
+        match = matches[0]
+        teams = match.split(" vs ")
+        keyboard = [[InlineKeyboardButton(teams[0], callback_data=f"vote_{teams[0]}"),
+                     InlineKeyboardButton(teams[1], callback_data=f"vote_{teams[1]}")]]
+    else:
+        # Two matches, provide buttons for both
+        teams1 = matches[0].split(" vs ")
+        teams2 = matches[1].split(" vs ")
+        keyboard = [
+            [InlineKeyboardButton(teams1[0], callback_data=f"vote1_{teams1[0]}"),
+             InlineKeyboardButton(teams1[1], callback_data=f"vote1_{teams1[1]}")],
+            [InlineKeyboardButton(teams2[0], callback_data=f"vote2_{teams2[0]}"),
+             InlineKeyboardButton(teams2[1], callback_data=f"vote2_{teams2[1]}")]
+        ]
 
-    await update.message.reply_text(f"✅ {username}, your vote is recorded! Votes will be revealed when the match starts.")
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("🗳️ Choose your vote:", reply_markup=reply_markup)
+
+
+async def vote_button_handler(update: Update, context: CallbackContext):
+    """Handles button clicks for voting."""
+    query = update.callback_query
+    user_id = query.from_user.id
+    username = query.from_user.first_name
+
+    # Parse the button callback data
+    data = query.data.split("_")
+    
+    if len(data) == 2:  # One-match scenario
+        _, chosen_team = data
+        if user_id not in votes:
+            votes[user_id] = {"username": username}
+        votes[user_id]["match1"] = chosen_team
+        await query.answer("✅ Vote recorded!")
+    
+    elif len(data) == 3:  # Two-match scenario
+        match_number, chosen_team = data[0][-1], data[1]
+        if user_id not in votes:
+            votes[user_id] = {"username": username}
+        if match_number == "1":
+            votes[user_id]["match1"] = chosen_team
+        else:
+            votes[user_id]["match2"] = chosen_team
+        await query.answer("✅ Vote recorded!")
+
+    await query.message.edit_text("🗳️ Your vote has been recorded! (Votes remain hidden until match starts)")
+
 
 async def reveal_votes(update: Update, context: CallbackContext):
     """Reveals votes when the match starts"""
@@ -108,54 +153,66 @@ from datetime import datetime  # Import for date tracking
 from datetime import datetime  # Import for date tracking
 
 async def set_winner(update: Update, context: CallbackContext):
-    """Set match winner and calculate points"""
+    """Set winners for matches and distribute 12 points per match among correct voters."""
     if update.message.from_user.id != OWNER_ID:
         await update.message.reply_text("❌ Only the owner can set the winner!")
         return
 
-    if not context.args:
-        await update.message.reply_text("Usage: /setwinner <team>")
+    if len(context.args) == 0:
+        await update.message.reply_text("Usage: /setwinner <Match1 Winner> [Match2 Winner]")
         return
 
-    winner = " ".join(context.args)
-    today_date = datetime.now().strftime("%Y-%m-%d")  # Get today's date
+    # Determine if there's one or two winners based on input
+    winner1 = context.args[0]
+    winner2 = context.args[1] if len(context.args) > 1 else None  # Match 2 is optional
 
-    if not votes:
-        await update.message.reply_text("No votes placed yet.")
-        return
+    today_date = datetime.now().strftime("%Y-%m-%d")
 
-    points = {}  # Store points for each user
+    # Count correct votes for match 1
+    correct_match1 = sum(1 for vote in votes.values() if vote.get("match1") == winner1)
+    
+    # Count correct votes for match 2 (only if it was played)
+    correct_match2 = sum(1 for vote in votes.values() if vote.get("match2") == winner2) if winner2 else 0
 
-    # Count how many users voted for the winner
-    correct_votes = sum(1 for _, team in votes.values() if team == winner)
+    results = []  # List for the result message
 
-    # Assign points based on votes
-    for user, (name, team) in votes.items():
-        if team == winner:
-            if correct_votes == 3:
-                points[user] = 2
-            elif correct_votes == 2:
-                points[user] = 3
-            elif correct_votes == 1:
-                points[user] = 6
-            else:
-                points[user] = 0  # No points if no one voted correctly
-        else:
-            points[user] = 0  # Wrong vote = 0 points
+    # Assign points to players
+    for user_id, vote_data in votes.items():
+        username = vote_data.get("username", "Unknown")
+        user_points = 0
 
-        # Save results to Google Sheets (Now includes date)
-        sheet.append_row([name, team, winner, points[user], today_date])
+        # For Match 1
+        if vote_data.get("match1") == winner1 and correct_match1 > 0:
+            user_points += 12 // correct_match1
 
-    # Format and send results message BEFORE clearing votes
-    result_text = f"🏆 The winner is {winner}!\n"
-    for user, points_earned in points.items():
-        name, _ = votes[user]  # Get name from votes
-        result_text += f"🎉 {name} gets {points_earned} points!\n"
+        # For Match 2 (only if it was played)
+        if winner2 and vote_data.get("match2") == winner2 and correct_match2 > 0:
+            user_points += 12 // correct_match2
 
-    await update.message.reply_text(result_text)  # ✅ FIXED: await added correctly
+        # Save results to Google Sheets
+        sheet.append_row([
+            username,
+            vote_data.get("match1", "N/A"),
+            winner1,
+            vote_data.get("match2", "N/A") if winner2 else "N/A",
+            winner2 if winner2 else "N/A",
+            user_points,
+            today_date
+        ])
 
-    # Reset votes after match result
+        results.append(f"{username} gets {user_points} points.")
+
+    # Build and send result message
+    result_text = f"🏆 Winners:\nMatch 1 Winner: {winner1}\n"
+    if winner2:
+        result_text += f"Match 2 Winner: {winner2}\n"
+    result_text += "\n".join(results)
+
+    await update.message.reply_text(result_text)
+
+    # Clear votes for next match day
     votes.clear()
+
 
 
 
