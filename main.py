@@ -246,11 +246,21 @@ async def leaderboard(update: Update, context: CallbackContext):
     scores = {}
 
     for row in all_records[1:]:  # Skip header row
-        if len(row) < 5:  
-            continue  # Skip incomplete rows
+        if len(row) < 6:  # ✅ Ensure we have at least 6 values
+            continue  
 
-        name, _, _, points, _ = row  # ✅ Now correctly unpacking 5 values
-        scores[name] = scores.get(name, 0) + int(points)
+        name, _, _, points, _, _ = row[:6]  # ✅ Slice row to avoid unpacking errors
+
+        try:
+            points = int(points)  # ✅ Convert points to integer safely
+        except ValueError:
+            continue  # Skip rows with invalid points
+
+        scores[name] = scores.get(name, 0) + points
+
+    if not scores:
+        await update.message.reply_text("No leaderboard data available.")
+        return
 
     sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
     leaderboard_text = "\n".join([f"{name}: {points} pts" for name, points in sorted_scores])
@@ -258,49 +268,44 @@ async def leaderboard(update: Update, context: CallbackContext):
     await update.message.reply_text(f"🏆 Leaderboard:\n{leaderboard_text}")
 
 
-import matplotlib.pyplot as plt
-
-import numpy as np  # Import numpy for cumulative sum
-import matplotlib.pyplot as plt
-
 
 async def plot_graph(update: Update, context: CallbackContext):
-    """Generate a graph of total scores over time"""
+    """Generate a graph of total scores over time (x-axis: Fixture)"""
     all_records = sheet.get_all_values()
     scores = {}
 
     for row in all_records[1:]:  # Skip the header
-        if len(row) < 6:  # Updated from 5 to 6
-            continue  # Skip rows that don't have enough data
+        if len(row) < 6:  # Ensure the row has at least 6 values
+            continue  
 
-        name, _, _, total_points, match_date, fixture = row  # Added `fixture`
+        name, _, _, total_points, match_date, fixture = row[:6]  # ✅ Using fixture for x-axis
 
         if name not in scores:
-            scores[name] = {"dates": [], "points": []}
+            scores[name] = {"fixtures": [], "points": []}
 
-        scores[name]["dates"].append(match_date)
+        scores[name]["fixtures"].append(fixture)  # ✅ Use fixture instead of date
         scores[name]["points"].append(int(total_points))
 
     # Plot the graph
     plt.figure(figsize=(10, 6))
     for name, data in scores.items():
-        plt.plot(data["dates"], data["points"], marker='o', linestyle='-', label=name)
+        plt.plot(data["fixtures"], data["points"], marker='o', linestyle='-', label=name)
 
-    plt.xlabel("Date")
+    plt.xlabel("Fixture")  # ✅ Changed from "Date" to "Fixture"
     plt.ylabel("Total Points")
-    plt.title("IPL Score Progress Over Time")
+    plt.title("IPL Score Progress Over Fixtures")
     plt.xticks(rotation=45)
     plt.legend()
     plt.grid()
 
     # Save and send graph
     graph_path = "graph.png"
-    plt.ylim(0, 12)  # Change 12 to your desired max limit
+    plt.ylim(0, 12)  # Change as needed
     plt.savefig(graph_path)
     plt.close()
 
-    # ✅ FIXED: Properly await the reply_photo call
     await update.message.reply_photo(photo=open(graph_path, "rb"))
+
 
 
 async def plot_graph2(update: Update, context: CallbackContext):
