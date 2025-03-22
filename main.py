@@ -52,7 +52,30 @@ votes = {}
 match_details = {}
 
 async def start(update: Update, context: CallbackContext):
-    await update.message.reply_text("🏏 Welcome to IPL Predictor! Use /addmatch <team1> vs <team2> to add a match.")
+    """Handles the /start command and shows available commands."""
+    start_message = (
+        "🏏 **Welcome to IPL Predictor!** 🎉\n\n"
+        "Use the commands below to interact with the bot:\n\n"
+        
+        "🏆 **Leaderboard & Scores**\n"
+        "📊 /leaderboard - View the current leaderboard.\n\n"
+        
+        "🗳 **Voting & Matches**\n"
+        "📝 /addmatch <Team1> vs <Team2> - Add a new match (Admin only).\n"
+        "🔘 /vote - Vote for a team.\n"
+        "📢 /revealvotes - Reveal all votes.\n"
+        "🏅 /setwinner <Team> - Set the match winner (Admin only).\n\n"
+        
+        "📊 **Graphs & Analysis**\n"
+        "📈 /plotgraph - Show match progress over time.\n"
+        "📊 /plotgraph2 - Show cumulative scores.\n"
+        "📉 /plotgraph3 - Show a bar chart.\n\n"
+        
+        "✨ **Type a command or click on one to get started!** 🚀"
+    )
+
+    await update.message.reply_text(start_message, parse_mode="Markdown")
+
 
 async def add_match(update: Update, context: CallbackContext):
     """Owner adds a match and clears old votes before triggering voting"""
@@ -190,7 +213,7 @@ async def set_winner(update: Update, context: CallbackContext):
     winner1 = context.args[0]
     winner2 = context.args[1] if len(context.args) > 1 else None  # Match 2 is optional
 
-    today_date = datetime.now().strftime("%Y-%m-%d")
+    today_date = datetime.now().strftime("%d-%m")
 
     # Get the fixture (match added via /addmatch)
     fixture = match_details.get("current_matches", ["N/A"])[0]  # Default to "N/A" if no match found
@@ -229,7 +252,7 @@ async def set_winner(update: Update, context: CallbackContext):
         results.append(f"{username} gets {user_points} points.")
 
     # Build and send result message
-    result_text = f"🏆 Winners:\nMatch 1 Winner: {winner1}\n"
+    result_text = f"🏆 Winners:\nMatch Winner: {winner1}\n" #Change this later. I have removed the Match 1 from here.
     if winner2:
         result_text += f"Match 2 Winner: {winner2}\n"
     result_text += "\n".join(results)
@@ -244,7 +267,7 @@ async def set_winner(update: Update, context: CallbackContext):
 
 
 async def leaderboard(update: Update, context: CallbackContext):
-    """Show leaderboard"""
+    """Show leaderboard and handle multiple matches correctly"""
     all_records = sheet.get_all_values()
     scores = {}
 
@@ -252,23 +275,39 @@ async def leaderboard(update: Update, context: CallbackContext):
         if len(row) < 6:  # ✅ Ensure we have at least 6 values
             continue  
 
-        name, _, _, points, _, _ = row[:6]  # ✅ Slice row to avoid unpacking errors
+        name, _, _, points, _, fixture = row[:6]  # ✅ Slice row correctly
 
         try:
             points = int(points)  # ✅ Convert points to integer safely
         except ValueError:
-            continue  # Skip rows with invalid points
+            continue  # Skip invalid rows
 
-        scores[name] = scores.get(name, 0) + points
+        if fixture not in scores:
+            scores[fixture] = {}
+
+        scores[fixture][name] = scores[fixture].get(name, 0) + points
 
     if not scores:
         await update.message.reply_text("No leaderboard data available.")
         return
 
-    sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-    leaderboard_text = "\n".join([f"{name}: {points} pts" for name, points in sorted_scores])
+    leaderboard_text = "🏆 **Leaderboard:**\n"
 
-    await update.message.reply_text(f"🏆 Leaderboard:\n{leaderboard_text}")
+    # Check if there's more than one match
+    match_fixtures = list(scores.keys())
+
+    if len(match_fixtures) >= 1:
+        leaderboard_text += f"\n📍 **{match_fixtures[0]}**\n"
+        sorted_scores = sorted(scores[match_fixtures[0]].items(), key=lambda x: x[1], reverse=True)
+        leaderboard_text += "\n".join([f"🏅 {name}: {points} pts" for name, points in sorted_scores])
+
+    if len(match_fixtures) == 2:
+        leaderboard_text += f"\n\n📍 **{match_fixtures[1]}**\n"
+        sorted_scores = sorted(scores[match_fixtures[1]].items(), key=lambda x: x[1], reverse=True)
+        leaderboard_text += "\n".join([f"🏅 {name}: {points} pts" for name, points in sorted_scores])
+
+    await update.message.reply_text(leaderboard_text, parse_mode="Markdown")
+
 
 import numpy as np
 
@@ -417,7 +456,7 @@ def main():
     app.add_handler(CommandHandler("reveal", reveal_votes))
     app.add_handler(CommandHandler("setwinner", set_winner))
     app.add_handler(CommandHandler("leaderboard", leaderboard))
-    app.add_handler(CommandHandler("graph", plot_graph))
+    app.add_handler(CommandHandler("graph1", plot_graph))
     app.add_handler(CommandHandler("graph2", plot_graph2))
     app.add_handler(CommandHandler("graph3", plot_graph3))
 
