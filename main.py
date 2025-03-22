@@ -171,23 +171,25 @@ async def vote_button_handler(update: Update, context: CallbackContext):
 
 
 async def reveal_votes(update: Update, context: CallbackContext):
-    """Reveals votes when the match starts"""
-    if update.message.from_user.id != OWNER_ID:
-        await update.message.reply_text("❌ Only the owner can reveal votes!")
+    """Reveals votes when the match starts - Now accessible to all users!"""
+    
+    if not votes:
+        await update.message.reply_text("❌ No votes have been placed yet!")
         return
 
-    if not votes:
-        await update.message.reply_text("No votes placed yet.")
-        return
+    match_exists = any("match2" in data for data in votes.values())  # Check if Match 2 exists
 
     vote_text = "\n".join(
         [
-            f"{data['username']} | Match 1: {data['match1'] or '❌ No Vote'} | Match 2: {data['match2'] or '❌ No Vote'}"
+            f"👤 **{data['username']}**\n"
+            f"🏅 **Match 1:** {data['match1'] if 'match1' in data else '❌ No Vote'}"
+            + (f"\n🏅 **Match 2:** {data['match2']}" if match_exists and "match2" in data else "")
             for data in votes.values()
         ]
     )
 
-    await update.message.reply_text(f"📢 **Votes Revealed**:\n\n{vote_text}")
+    await update.message.reply_text(f"📢 **Votes Revealed!**\n\n{vote_text}", parse_mode="Markdown")
+
 
 
 
