@@ -62,14 +62,14 @@ async def start(update: Update, context: CallbackContext):
         
         "🗳 **Voting & Matches**\n"
         "📝 /addmatch <Team1> vs <Team2> - Add a new match (Admin only).\n"
-        "🔘 /vote - Vote for a team.\n"
-        "📢 /revealvotes - Reveal all votes.\n"
+        "🔘 /vote - Vote for a team.(only use this when normal voting isn't working)\n"
+        "📢 /reveal - Reveal all votes.\n"
         "🏅 /setwinner <Team> - Set the match winner (Admin only).\n\n"
         
         "📊 **Graphs & Analysis**\n"
-        "📈 /plotgraph - Show match progress over time.\n"
-        "📊 /plotgraph2 - Show cumulative scores.\n"
-        "📉 /plotgraph3 - Show a bar chart.\n\n"
+        "📈 /graph1 - Show daily match scores.\n"
+        "📊 /graph2 - Show cumulative scores.\n"
+        "📉 /graph3 - Show a bar chart of the leaderboard.\n\n"
         
         "✨ **Type a command or click on one to get started!** 🚀"
     )
@@ -267,46 +267,44 @@ async def set_winner(update: Update, context: CallbackContext):
 
 
 async def leaderboard(update: Update, context: CallbackContext):
-    """Show leaderboard and handle multiple matches correctly"""
+    """Show a clean and stylish leaderboard highlighting the leader."""
     all_records = sheet.get_all_values()
     scores = {}
 
     for row in all_records[1:]:  # Skip header row
-        if len(row) < 6:  # ✅ Ensure we have at least 6 values
+        if len(row) < 4:  # ✅ Ensure necessary columns exist
             continue  
 
-        name, _, _, points, _, fixture = row[:6]  # ✅ Slice row correctly
+        name, _, _, points = row[:4]  # ✅ Extract relevant fields
 
         try:
-            points = int(points)  # ✅ Convert points to integer safely
+            points = int(points)  # ✅ Convert points safely
         except ValueError:
             continue  # Skip invalid rows
 
-        if fixture not in scores:
-            scores[fixture] = {}
-
-        scores[fixture][name] = scores[fixture].get(name, 0) + points
+        scores[name] = scores.get(name, 0) + points
 
     if not scores:
-        await update.message.reply_text("No leaderboard data available.")
+        await update.message.reply_text("🏆 No leaderboard data available yet!")
         return
 
-    leaderboard_text = "🏆 **Leaderboard:**\n"
+    # Sort scores in descending order
+    sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
-    # Check if there's more than one match
-    match_fixtures = list(scores.keys())
+    # Extract the leader
+    leader_name, leader_points = sorted_scores[0]
+    
+    leaderboard_text = f"🏆 **IPL Predictor Leaderboard** 🏆\n\n"
+    leaderboard_text += f"👑 **Current Leader:** {leader_name} - **{leader_points} pts** 🎖\n\n"
+    leaderboard_text += "📊 **Top Players:**\n"
 
-    if len(match_fixtures) >= 1:
-        leaderboard_text += f"\n📍 **{match_fixtures[0]}**\n"
-        sorted_scores = sorted(scores[match_fixtures[0]].items(), key=lambda x: x[1], reverse=True)
-        leaderboard_text += "\n".join([f"🏅 {name}: {points} pts" for name, points in sorted_scores])
-
-    if len(match_fixtures) == 2:
-        leaderboard_text += f"\n\n📍 **{match_fixtures[1]}**\n"
-        sorted_scores = sorted(scores[match_fixtures[1]].items(), key=lambda x: x[1], reverse=True)
-        leaderboard_text += "\n".join([f"🏅 {name}: {points} pts" for name, points in sorted_scores])
+    # Format leaderboard display
+    for rank, (name, points) in enumerate(sorted_scores, start=1):
+        medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else "🎯"
+        leaderboard_text += f"{medal} {rank}. **{name}** - {points} pts\n"
 
     await update.message.reply_text(leaderboard_text, parse_mode="Markdown")
+
 
 
 import numpy as np
