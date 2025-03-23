@@ -77,96 +77,140 @@ async def start(update: Update, context: CallbackContext):
     await update.message.reply_text(start_message, parse_mode="Markdown")
 
 
-async def add_match(update: Update, context: CallbackContext):
-    """Owner adds a match and clears old votes before triggering voting"""
+async def add_match1(update: Update, context: CallbackContext):
+    """Owner adds Match 1 and clears old votes before triggering voting"""
     if update.message.from_user.id != OWNER_ID:
         await update.message.reply_text("❌ Only the owner can add matches!")
         return
 
     if not context.args:
-        await update.message.reply_text("Usage: /addmatch <Team1> vs <Team2>")
+        await update.message.reply_text("Usage: /addmatch1 <Team1> vs <Team2>")
         return
 
     match = " ".join(context.args)
 
-    # Reset matches before adding a new one
-    match_details["current_matches"] = []  # Clear previous matches
+    # Reset Match 1 before adding a new one
+    match_details["match1"] = match  # Store Match 1 separately
 
-    match_details["current_matches"].append(match)
+    global match1_votes
+    match1_votes = {}  # Clear previous votes for Match 1
 
-    await update.message.reply_text(f"📢 Match added: {match}")
+    await update.message.reply_text(f"📢 Match 1 added: {match}")
 
-    # Trigger voting immediately
-    await trigger_voting(update, context)
+    # Trigger voting for Match 1
+    await trigger_voting1(update, context)
+
+
+async def add_match2(update: Update, context: CallbackContext):
+    """Owner adds Match 2 and clears old votes before triggering voting"""
+    if update.message.from_user.id != OWNER_ID:
+        await update.message.reply_text("❌ Only the owner can add matches!")
+        return
+
+    if not context.args:
+        await update.message.reply_text("Usage: /addmatch2 <Team1> vs <Team2>")
+        return
+
+    match = " ".join(context.args)
+
+    # Reset Match 2 before adding a new one
+    match_details["match2"] = match  # Store Match 2 separately
+
+    global match2_votes
+    match2_votes = {}  # Clear previous votes for Match 2
+
+    await update.message.reply_text(f"📢 Match 2 added: {match}")
+
+    # Trigger voting for Match 2
+    await trigger_voting2(update, context)
 
 
 
-async def trigger_voting(update: Update, context: CallbackContext):
-    """Automatically send voting buttons when a match is added"""
-    if not match_details.get("current_matches"):
-        return  # No matches to vote on
 
-    matches = match_details["current_matches"]
-    
-    # If one match is scheduled
-    if len(matches) == 1:
-        teams = matches[0].split(" vs ")
-        keyboard = [[InlineKeyboardButton(teams[0], callback_data=f"vote_{teams[0]}"),
-                     InlineKeyboardButton(teams[1], callback_data=f"vote_{teams[1]}")]]
-    
-    else:  # Two matches scheduled
-        teams1 = matches[0].split(" vs ")
-        teams2 = matches[1].split(" vs ")
-        keyboard = [
-            [InlineKeyboardButton(teams1[0], callback_data=f"vote1_{teams1[0]}"),
-             InlineKeyboardButton(teams1[1], callback_data=f"vote1_{teams1[1]}")],
-            [InlineKeyboardButton(teams2[0], callback_data=f"vote2_{teams2[0]}"),
-             InlineKeyboardButton(teams2[1], callback_data=f"vote2_{teams2[1]}")]
-        ]
+async def trigger_voting1(update: Update, context: CallbackContext):
+    """Automatically send voting buttons for Match 1"""
+    if "match1" not in match_details or not match_details["match1"]:
+        return  # No match added yet
+
+    teams = match_details["match1"].split(" vs ")
+    keyboard = [[InlineKeyboardButton(teams[0], callback_data=f"vote1_{teams[0]}"),
+                 InlineKeyboardButton(teams[1], callback_data=f"vote1_{teams[1]}")]]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("🗳️ Place your vote!", reply_markup=reply_markup)
+    await update.message.reply_text("🗳️ Place your vote for Match 1!", reply_markup=reply_markup)
+
+
+async def trigger_voting2(update: Update, context: CallbackContext):
+    """Automatically send voting buttons for Match 2"""
+    if "match2" not in match_details or not match_details["match2"]:
+        return  # No match added yet
+
+    teams = match_details["match2"].split(" vs ")
+    keyboard = [[InlineKeyboardButton(teams[0], callback_data=f"vote2_{teams[0]}"),
+                 InlineKeyboardButton(teams[1], callback_data=f"vote2_{teams[1]}")]]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("🗳️ Place your vote for Match 2!", reply_markup=reply_markup)
+
 
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 
-async def vote(update: Update, context: CallbackContext):
-    """Players vote manually using inline buttons"""
-    if not match_details.get("current_matches") or len(match_details["current_matches"]) == 0:
-        await update.message.reply_text("❌ No matches added yet! Wait for the admin.")
+async def vote1(update: Update, context: CallbackContext):
+    """Players vote manually using inline buttons for Match 1"""
+    if "match1" not in match_details or not match_details["match1"]:
+        await update.message.reply_text("❌ No Match 1 added yet! Wait for the admin.")
         return
 
-    # Reuse the function to show voting buttons again
-    await trigger_voting(update, context)
+    # Show voting buttons for Match 1
+    await trigger_voting1(update, context)
+
+
+async def vote2(update: Update, context: CallbackContext):
+    """Players vote manually using inline buttons for Match 2"""
+    if "match2" not in match_details or not match_details["match2"]:
+        await update.message.reply_text("❌ No Match 2 added yet! Wait for the admin.")
+        return
+
+    # Show voting buttons for Match 2
+    await trigger_voting2(update, context)
 
 
 
-async def vote_button_handler(update: Update, context: CallbackContext):
-    """Handles button clicks for voting."""
+
+async def vote_button_handler1(update: Update, context: CallbackContext):
+    """Handles button clicks for voting on Match 1."""
     query = update.callback_query
     user_id = query.from_user.id
     username = query.from_user.first_name
 
     data = query.data.split("_")
 
-    if user_id not in votes:
-        votes[user_id] = {"username": username, "match1": None, "match2": None}
+    if user_id not in match1_votes:
+        match1_votes[user_id] = {"username": username, "match1": None}
 
-    if len(data) == 2:  # Single match scenario
+    if len(data) == 2:  # Match 1 voting scenario
         _, chosen_team = data
-        votes[user_id]["match1"] = chosen_team
-        await query.answer(f"✅ Vote recorded for {chosen_team}!")
+        match1_votes[user_id]["match1"] = chosen_team
+        await query.answer(f"✅ Vote recorded for Match 1: {chosen_team}!")
 
-    elif len(data) == 3:  # Two-match scenario
-        _, match_number, chosen_team = data  # Ensure correct unpacking
 
-        if match_number == "1":
-            votes[user_id]["match1"] = chosen_team
-            await query.answer(f"✅ Vote recorded for Match 1: {chosen_team}!")
+async def vote_button_handler2(update: Update, context: CallbackContext):
+    """Handles button clicks for voting on Match 2."""
+    query = update.callback_query
+    user_id = query.from_user.id
+    username = query.from_user.first_name
 
-        elif match_number == "2":
-            votes[user_id]["match2"] = chosen_team
-            await query.answer(f"✅ Vote recorded for Match 2: {chosen_team}!")
+    data = query.data.split("_")
+
+    if user_id not in match2_votes:
+        match2_votes[user_id] = {"username": username, "match2": None}
+
+    if len(data) == 2:  # Match 2 voting scenario
+        _, chosen_team = data
+        match2_votes[user_id]["match2"] = chosen_team
+        await query.answer(f"✅ Vote recorded for Match 2: {chosen_team}!")
+
 
 
 
@@ -174,26 +218,41 @@ async def vote_button_handler(update: Update, context: CallbackContext):
 
 
 
-async def reveal_votes(update: Update, context: CallbackContext):
-    """Reveals votes when the match starts - Now accessible to all users!"""
+async def reveal_votes1(update: Update, context: CallbackContext):
+    """Reveals votes for Match 1 - Now accessible to all users!"""
     
-    if not votes:
-        await update.message.reply_text("❌ No votes have been placed yet!")
+    if not match1_votes:
+        await update.message.reply_text("❌ No votes have been placed for Match 1 yet!")
         return
-
-    match_exists = any(data.get("match2") for data in votes.values())  # Ensures match2 has a valid vote
-
 
     vote_text = "\n".join(
         [
             f"👤 **{data['username']}**\n"
             f"🏅 **Match 1:** {data['match1'] if 'match1' in data else '❌ No Vote'}"
-            + (f"\n🏅 **Match 2:** {data['match2']}" if match_exists and "match2" in data else "")
-            for data in votes.values()
+            for data in match1_votes.values()
         ]
     )
 
-    await update.message.reply_text(f"📢 **Votes Revealed!**\n\n{vote_text}", parse_mode="Markdown")
+    await update.message.reply_text(f"📢 **Votes for Match 1 Revealed!**\n\n{vote_text}", parse_mode="Markdown")
+
+
+async def reveal_votes2(update: Update, context: CallbackContext):
+    """Reveals votes for Match 2 - Now accessible to all users!"""
+    
+    if not match2_votes:
+        await update.message.reply_text("❌ No votes have been placed for Match 2 yet!")
+        return
+
+    vote_text = "\n".join(
+        [
+            f"👤 **{data['username']}**\n"
+            f"🏅 **Match 2:** {data['match2'] if 'match2' in data else '❌ No Vote'}"
+            for data in match2_votes.values()
+        ]
+    )
+
+    await update.message.reply_text(f"📢 **Votes for Match 2 Revealed!**\n\n{vote_text}", parse_mode="Markdown")
+
 
 
 
@@ -206,68 +265,87 @@ from datetime import datetime  # Import for date tracking
 
 from datetime import datetime  # Import for date tracking
 
-async def set_winner(update: Update, context: CallbackContext):
-    """Set winners for matches and distribute 12 points per match among correct voters."""
+async def set_winner1(update: Update, context: CallbackContext):
+    """Set winner for Match 1 and distribute 12 points among correct voters."""
     if update.message.from_user.id != OWNER_ID:
         await update.message.reply_text("❌ Only the owner can set the winner!")
         return
 
     if len(context.args) == 0:
-        await update.message.reply_text("Usage: /setwinner <Match1 Winner> [Match2 Winner]")
+        await update.message.reply_text("Usage: /setwinner1 <Match1 Winner>")
         return
 
-    # Determine if there's one or two winners based on input
     winner1 = context.args[0]
-    winner2 = context.args[1] if len(context.args) > 1 else None  # Match 2 is optional
-
     today_date = datetime.now().strftime("%d-%m")
 
-    # Get the fixture (match added via /addmatch)
     fixture = match_details.get("current_matches", ["N/A"])[0]  # Default to "N/A" if no match found
 
-    # Count correct votes for match 1
-    correct_match1 = sum(1 for vote in votes.values() if vote.get("match1") == winner1)
-    
-    # Count correct votes for match 2 (only if it was played)
-    correct_match2 = sum(1 for vote in votes.values() if vote.get("match2") == winner2) if winner2 else 0
+    correct_match1 = sum(1 for vote in match1_votes.values() if vote.get("match1") == winner1)
 
-    results = []  # List for the result message
+    results = []
 
-    # Assign points to players
-    for user_id, vote_data in votes.items():
+    for user_id, vote_data in match1_votes.items():
         username = vote_data.get("username", "Unknown")
-        user_points = 0
+        user_points = 12 // correct_match1 if correct_match1 > 0 and vote_data.get("match1") == winner1 else 0
 
-        # For Match 1
-        if vote_data.get("match1") == winner1 and correct_match1 > 0:
-            user_points += 12 // correct_match1
-
-        # For Match 2 (only if it was played)
-        if winner2 and vote_data.get("match2") == winner2 and correct_match2 > 0:
-            user_points += 12 // correct_match2
-
-        # Save results to Google Sheets with the fixture column
         sheet.append_row([
-            username,                          # Player Name
-            vote_data.get("match1", "N/A"),    # Team Voted
-            winner1,                           # Winner
-            user_points,                       # Points Earned
-            today_date,                        # Date
-            fixture                            # Fixture (Match Added)
+            username,
+            vote_data.get("match1", "N/A"),
+            winner1,
+            user_points,
+            today_date,
+            fixture
         ])
 
         results.append(f"{username} gets {user_points} points.")
 
-    # Build and send result message
-    result_text = f"🏆 Winners:\nMatch Winner: {winner1}\n" #Change this later. I have removed the Match 1 from here.
-    if winner2:
-        result_text += f"Match 2 Winner: {winner2}\n"
-    result_text += "\n".join(results)
+    result_text = f"🏆 Winner:\nMatch 1 Winner: {winner1}\n" + "\n".join(results)
 
     await update.message.reply_text(result_text)
 
-    # Clear votes for next match day
-    votes.clear()
+    match1_votes.clear()
+
+
+async def set_winner2(update: Update, context: CallbackContext):
+    """Set winner for Match 2 and distribute 12 points among correct voters."""
+    if update.message.from_user.id != OWNER_ID:
+        await update.message.reply_text("❌ Only the owner can set the winner!")
+        return
+
+    if len(context.args) == 0:
+        await update.message.reply_text("Usage: /setwinner2 <Match2 Winner>")
+        return
+
+    winner2 = context.args[0]
+    today_date = datetime.now().strftime("%d-%m")
+
+    fixture = match_details.get("current_matches", ["N/A"])[1] if len(match_details.get("current_matches", [])) > 1 else "N/A"
+
+    correct_match2 = sum(1 for vote in match2_votes.values() if vote.get("match2") == winner2)
+
+    results = []
+
+    for user_id, vote_data in match2_votes.items():
+        username = vote_data.get("username", "Unknown")
+        user_points = 12 // correct_match2 if correct_match2 > 0 and vote_data.get("match2") == winner2 else 0
+
+        sheet.append_row([
+            username,
+            vote_data.get("match2", "N/A"),
+            winner2,
+            user_points,
+            today_date,
+            fixture
+        ])
+
+        results.append(f"{username} gets {user_points} points.")
+
+    result_text = f"🏆 Winner:\nMatch 2 Winner: {winner2}\n" + "\n".join(results)
+
+    await update.message.reply_text(result_text)
+
+    match2_votes.clear()
+
 
 
 
@@ -456,10 +534,12 @@ def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CallbackQueryHandler(vote_button_handler, pattern="^vote"))
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("addmatch", add_match))
+    app.add_handler(CommandHandler("addmatch1", add_match1))
+    app.add_handler(CommandHandler("addmatch2", add_match2))
     app.add_handler(CommandHandler("vote", vote))
     app.add_handler(CommandHandler("reveal", reveal_votes))
-    app.add_handler(CommandHandler("setwinner", set_winner))
+    app.add_handler(CommandHandler("setwinner1", set_winner1))
+    app.add_handler(CommandHandler("setwinner2", set_winner2))
     app.add_handler(CommandHandler("leaderboard", leaderboard))
     app.add_handler(CommandHandler("graph1", plot_graph))
     app.add_handler(CommandHandler("graph2", plot_graph2))
