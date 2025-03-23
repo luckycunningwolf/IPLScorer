@@ -532,7 +532,8 @@ async def plot_graph3(update: Update, context: CallbackContext):
 def main():
     """Start the bot"""
     app = Application.builder().token(TOKEN).build()
-    app.add_handler(CallbackQueryHandler(vote_button_handler, pattern="^vote"))
+    app.add_handler(CallbackQueryHandler(vote_button_handler1, pattern="^vote1"))
+    app.add_handler(CallbackQueryHandler(vote_button_handler2, pattern="^vote2"))
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("addmatch1", add_match1))
     app.add_handler(CommandHandler("addmatch2", add_match2))
