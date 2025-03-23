@@ -83,22 +83,21 @@ async def add_match(update: Update, context: CallbackContext):
         await update.message.reply_text("❌ Only the owner can add matches!")
         return
 
-    if not context.args or "vs" not in " ".join(context.args):
+    if not context.args:
         await update.message.reply_text("Usage: /addmatch <Team1> vs <Team2>")
         return
 
     match = " ".join(context.args)
 
-    if "current_matches" not in match_details:
-        match_details["current_matches"] = []
+    # Reset matches before adding a new one
+    match_details["current_matches"] = []  # Clear previous matches
 
-    match_details["current_matches"].append(match)  # Append match instead of resetting
+    match_details["current_matches"].append(match)
 
     await update.message.reply_text(f"📢 Match added: {match}")
 
     # Trigger voting immediately
     await trigger_voting(update, context)
-
 
 
 
@@ -159,15 +158,17 @@ async def vote_button_handler(update: Update, context: CallbackContext):
         await query.answer(f"✅ Vote recorded for {chosen_team}!")
 
     elif len(data) == 3:  # Two-match scenario
-        match_number = data[0][-1]  # Extract match number
-        chosen_team = data[1]  # Fix: Ensure correct extraction of team name
+    _, match_number, chosen_team = data  # Ensure correct unpacking
 
-        if match_number == "1":
-            votes[user_id]["match1"] = chosen_team
-            await query.answer(f"✅ Vote recorded for Match 1: {chosen_team}!")
-        elif match_number == "2":
-            votes[user_id]["match2"] = chosen_team
-            await query.answer(f"✅ Vote recorded for Match 2: {chosen_team}!")
+    if match_number == "1":
+        votes[user_id]["match1"] = chosen_team
+        await query.answer(f"✅ Vote recorded for Match 1: {chosen_team}!")
+    elif match_number == "2":
+        votes[user_id]["match2"] = chosen_team
+        await query.answer(f"✅ Vote recorded for Match 2: {chosen_team}!")
+
+
+    # ✅ Buttons remain active for others—only user's button click is processed
 
 
 
@@ -178,7 +179,8 @@ async def reveal_votes(update: Update, context: CallbackContext):
         await update.message.reply_text("❌ No votes have been placed yet!")
         return
 
-    match_exists = any("match2" in data for data in votes.values())  # Check if Match 2 exists
+    match_exists = any(data.get("match2") for data in votes.values())  # Ensures match2 has a valid vote
+
 
     vote_text = "\n".join(
         [
