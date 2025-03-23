@@ -83,21 +83,22 @@ async def add_match(update: Update, context: CallbackContext):
         await update.message.reply_text("❌ Only the owner can add matches!")
         return
 
-    if not context.args:
+    if not context.args or "vs" not in " ".join(context.args):
         await update.message.reply_text("Usage: /addmatch <Team1> vs <Team2>")
         return
 
     match = " ".join(context.args)
 
-    # Reset matches before adding a new one
-    match_details["current_matches"] = []  # Clear previous matches
+    if "current_matches" not in match_details:
+        match_details["current_matches"] = []
 
-    match_details["current_matches"].append(match)
+    match_details["current_matches"].append(match)  # Append match instead of resetting
 
     await update.message.reply_text(f"📢 Match added: {match}")
 
     # Trigger voting immediately
     await trigger_voting(update, context)
+
 
 
 
@@ -158,7 +159,8 @@ async def vote_button_handler(update: Update, context: CallbackContext):
         await query.answer(f"✅ Vote recorded for {chosen_team}!")
 
     elif len(data) == 3:  # Two-match scenario
-        match_number, chosen_team = data[0][-1], data[1]
+        match_number = data[0][-1]  # Extract match number
+        chosen_team = data[1]  # Fix: Ensure correct extraction of team name
 
         if match_number == "1":
             votes[user_id]["match1"] = chosen_team
@@ -167,7 +169,6 @@ async def vote_button_handler(update: Update, context: CallbackContext):
             votes[user_id]["match2"] = chosen_team
             await query.answer(f"✅ Vote recorded for Match 2: {chosen_team}!")
 
-    # ✅ Buttons remain active for others—only user's button click is processed
 
 
 async def reveal_votes(update: Update, context: CallbackContext):
