@@ -158,14 +158,16 @@ async def vote_button_handler(update: Update, context: CallbackContext):
         await query.answer(f"✅ Vote recorded for {chosen_team}!")
 
     elif len(data) == 3:  # Two-match scenario
-    _, match_number, chosen_team = data  # Ensure correct unpacking
+        _, match_number, chosen_team = data  # Ensure correct unpacking
 
-    if match_number == "1":
-        votes[user_id]["match1"] = chosen_team
-        await query.answer(f"✅ Vote recorded for Match 1: {chosen_team}!")
-    elif match_number == "2":
-        votes[user_id]["match2"] = chosen_team
-        await query.answer(f"✅ Vote recorded for Match 2: {chosen_team}!")
+        if match_number == "1":
+            votes[user_id]["match1"] = chosen_team
+            await query.answer(f"✅ Vote recorded for Match 1: {chosen_team}!")
+
+        elif match_number == "2":
+            votes[user_id]["match2"] = chosen_team
+            await query.answer(f"✅ Vote recorded for Match 2: {chosen_team}!")
+
 
 
     # ✅ Buttons remain active for others—only user's button click is processed
