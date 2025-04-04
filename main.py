@@ -58,18 +58,22 @@ async def start(update: Update, context: CallbackContext):
         "Use the commands below to interact with the bot:\n\n"
         
         "🏆 **Leaderboard & Scores**\n"
-        "📊 /leaderboard - View the current leaderboard.\n\n"
+        "📊 /lb - View the current leaderboard.\n\n"
         
         "🗳 **Voting & Matches**\n"
-        "📝 /addmatch <Team1> vs <Team2> - Add a new match (Admin only).\n"
-        "🔘 /vote - Vote for a team.(only use this when normal voting isn't working)\n"
-        "📢 /reveal - Reveal all votes.\n"
-        "🏅 /setwinner <Team> - Set the match winner (Admin only).\n\n"
+        "📝 /addm1 <Team1> vs <Team2> - Add Match 1.\n"
+        "📝 /addm2 <Team1> vs <Team2> - Add Match 2 (if applicable).\n"
+        "🔘 /vote1 - Vote for Match 1.\n"
+        "🔘 /vote2 - Vote for Match 2 (if applicable).\n"
+        "📢 /rev1 - Reveal votes for Match 1.\n"
+        "📢 /rev2 - Reveal votes for Match 2 (if applicable).\n"
+        "🏅 /setw1 <Team> - Set the winner for Match 1.\n"
+        "🏅 /setw2 <Team> - Set the winner for Match 2 (if applicable).\n\n"
         
         "📊 **Graphs & Analysis**\n"
-        "📈 /graph1 - Show daily match scores.\n"
-        "📊 /graph2 - Show cumulative scores.\n"
-        "📉 /graph3 - Show a bar chart of the leaderboard.\n\n"
+        "📈 /g1 - Show daily match scores.\n"
+        "📊 /g2 - Show cumulative scores over time.\n"
+        "📉 /g3 - Show a bar chart of the leaderboard.\n\n"
         
         "✨ **Type a command or click on one to get started!** 🚀"
     )
@@ -77,11 +81,9 @@ async def start(update: Update, context: CallbackContext):
     await update.message.reply_text(start_message, parse_mode="Markdown")
 
 
+
 async def add_match1(update: Update, context: CallbackContext):
-    """Owner adds Match 1 and clears old votes before triggering voting"""
-    if update.message.from_user.id != OWNER_ID:
-        await update.message.reply_text("❌ Only the owner can add matches!")
-        return
+    """Anyone can add a Match and clears old votes before triggering voting"""
 
     if not context.args:
         await update.message.reply_text("Usage: /addmatch1 <Team1> vs <Team2>")
@@ -103,10 +105,7 @@ async def add_match1(update: Update, context: CallbackContext):
 
 async def add_match2(update: Update, context: CallbackContext):
     """Owner adds Match 2 and clears old votes before triggering voting"""
-    if update.message.from_user.id != OWNER_ID:
-        await update.message.reply_text("❌ Only the owner can add matches!")
-        return
-
+    
     if not context.args:
         await update.message.reply_text("Usage: /addmatch2 <Team1> vs <Team2>")
         return
@@ -278,7 +277,9 @@ async def set_winner1(update: Update, context: CallbackContext):
     winner1 = context.args[0]
     today_date = datetime.now().strftime("%d-%m")
 
-    fixture = match_details.get("current_matches", ["N/A"])[0]  # Default to "N/A" if no match found
+    # Ensure match details are correctly retrieved
+    fixture_list = match_details.get("current_matches", [])
+    fixture = fixture_list[0] if len(fixture_list) > 0 else "N/A"
 
     correct_match1 = sum(1 for vote in match1_votes.values() if vote.get("match1") == winner1)
 
@@ -294,7 +295,7 @@ async def set_winner1(update: Update, context: CallbackContext):
             winner1,
             user_points,
             today_date,
-            fixture
+            fixture  # Now correctly extracted!
         ])
 
         results.append(f"{username} gets {user_points} points.")
@@ -308,10 +309,6 @@ async def set_winner1(update: Update, context: CallbackContext):
 
 async def set_winner2(update: Update, context: CallbackContext):
     """Set winner for Match 2 and distribute 12 points among correct voters."""
-    if update.message.from_user.id != OWNER_ID:
-        await update.message.reply_text("❌ Only the owner can set the winner!")
-        return
-
     if len(context.args) == 0:
         await update.message.reply_text("Usage: /setwinner2 <Match2 Winner>")
         return
@@ -319,7 +316,9 @@ async def set_winner2(update: Update, context: CallbackContext):
     winner2 = context.args[0]
     today_date = datetime.now().strftime("%d-%m")
 
-    fixture = match_details.get("current_matches", ["N/A"])[1] if len(match_details.get("current_matches", [])) > 1 else "N/A"
+    # Ensure match details are correctly retrieved
+    fixture_list = match_details.get("current_matches", [])
+    fixture = fixture_list[1] if len(fixture_list) > 1 else "N/A"
 
     correct_match2 = sum(1 for vote in match2_votes.values() if vote.get("match2") == winner2)
 
@@ -335,7 +334,7 @@ async def set_winner2(update: Update, context: CallbackContext):
             winner2,
             user_points,
             today_date,
-            fixture
+            fixture  # Now correctly extracted!
         ])
 
         results.append(f"{username} gets {user_points} points.")
@@ -345,6 +344,7 @@ async def set_winner2(update: Update, context: CallbackContext):
     await update.message.reply_text(result_text)
 
     match2_votes.clear()
+
 
 
 
@@ -432,6 +432,10 @@ async def plot_graph(update: Update, context: CallbackContext):
     await update.message.reply_photo(photo=open(graph_path, "rb"))
 
 
+import matplotlib.pyplot as plt
+import numpy as np
+from datetime import datetime
+
 async def plot_graph2(update: Update, context: CallbackContext):
     """Generate a cumulative score graph over time"""
     all_records = sheet.get_all_values()
@@ -449,6 +453,7 @@ async def plot_graph2(update: Update, context: CallbackContext):
 
         try:
             points = int(points)
+            match_date = datetime.strptime(match_date, "%d-%m")  # ✅ Convert to datetime object
         except ValueError:
             continue
 
@@ -465,10 +470,14 @@ async def plot_graph2(update: Update, context: CallbackContext):
     plt.figure(figsize=(10, 6))
 
     for name, data in scores.items():
+        # ✅ Sort using actual datetime objects
         sorted_dates, sorted_points = zip(*sorted(zip(data["dates"], data["points"])))
         cumulative_points = np.cumsum(sorted_points)
 
-        plt.plot(sorted_dates, cumulative_points, marker='o', linestyle='-', label=name)
+        # ✅ Convert dates back to readable format for display
+        formatted_dates = [d.strftime("%d-%m") for d in sorted_dates]
+
+        plt.plot(formatted_dates, cumulative_points, marker='o', linestyle='-', label=name)
 
     plt.xlabel("Date")
     plt.ylabel("Total Points (Cumulative)")
@@ -483,6 +492,7 @@ async def plot_graph2(update: Update, context: CallbackContext):
 
     with open(graph_path, "rb") as photo:
         await update.message.reply_photo(photo=photo)
+
 
 
 async def plot_graph3(update: Update, context: CallbackContext):
@@ -534,19 +544,19 @@ def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CallbackQueryHandler(vote_button_handler1, pattern="^vote1"))
     app.add_handler(CallbackQueryHandler(vote_button_handler2, pattern="^vote2"))
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("addmatch1", add_match1))
-    app.add_handler(CommandHandler("addmatch2", add_match2))
+    app.add_handler(CommandHandler("help", start))
+    app.add_handler(CommandHandler("addm1", add_match1))
+    app.add_handler(CommandHandler("addm2", add_match2))
     app.add_handler(CommandHandler("vote1", vote1))
     app.add_handler(CommandHandler("vote2", vote2))
-    app.add_handler(CommandHandler("reveal1", reveal_votes1))
-    app.add_handler(CommandHandler("reveal2", reveal_votes2))
-    app.add_handler(CommandHandler("setwinner1", set_winner1))
-    app.add_handler(CommandHandler("setwinner2", set_winner2))
-    app.add_handler(CommandHandler("leaderboard", leaderboard))
-    app.add_handler(CommandHandler("graph1", plot_graph))
-    app.add_handler(CommandHandler("graph2", plot_graph2))
-    app.add_handler(CommandHandler("graph3", plot_graph3))
+    app.add_handler(CommandHandler("rev1", reveal_votes1))
+    app.add_handler(CommandHandler("rev2", reveal_votes2))
+    app.add_handler(CommandHandler("setw1", set_winner1))
+    app.add_handler(CommandHandler("setw2", set_winner2))
+    app.add_handler(CommandHandler("lb", leaderboard))
+    app.add_handler(CommandHandler("g1", plot_graph))
+    app.add_handler(CommandHandler("g2", plot_graph2))
+    app.add_handler(CommandHandler("g3", plot_graph3))
 
     print("Bot is running...")
     app.run_polling()
