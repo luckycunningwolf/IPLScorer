@@ -266,9 +266,7 @@ from datetime import datetime  # Import for date tracking
 
 async def set_winner1(update: Update, context: CallbackContext):
     """Set winner for Match 1 and distribute 12 points among correct voters."""
-    if update.message.from_user.id != OWNER_ID:
-        await update.message.reply_text("❌ Only the owner can set the winner!")
-        return
+    
 
     if len(context.args) == 0:
         await update.message.reply_text("Usage: /setwinner1 <Match1 Winner>")
