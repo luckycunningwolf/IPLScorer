@@ -43,6 +43,10 @@ sheet = client.open("IPL_Scores").sheet1
 # Store votes and matches
 votes = {}
 match_details = {}
+match1_votes = {}
+match2_votes = {}
+match_details = {}
+
 
 # Now you can use 'creds' for authentication in Google APIs
 
